@@ -21,9 +21,6 @@ private:
 	double Lx;
 	double Ly;
 	double Lz;
-	std::vector<double> px_old;
-	std::vector<double> py_old;
-	std::vector<double> pz_old;
 
 public:
 	std::vector<double> px;
@@ -40,8 +37,7 @@ public:
 		np(n), Lx(lx), Ly(ly), Lz(lz), 
 		px(n, 0.0), py(n, 0.0), pz(n, 0.0), 
 		vx(n, 0.0), vy(n, 0.0), vz(n, 0.0),
-		fx(n, 0.0), fy(n, 0.0), fz(n, 0.0),
-		px_old(n, 0.0), py_old(n, 0.0), pz_old(n, 0.0)
+		fx(n, 0.0), fy(n, 0.0), fz(n, 0.0)
 		{ }
 	
 	int n_particles(void) const { return np; }
@@ -90,20 +86,6 @@ public:
     		r = sqrt(dx*dx + dy*dy + dz*dz);
 	}
 
-	double pbc_dist(int i, int j)
-	{
-		double dx = px[i] - px[j];
-    		double dy = py[i] - py[j];
-		double dz = pz[i] - pz[j];
-    		while (dx < -0.5*Lx) { dx += Lx; }
-    		while (dx >  0.5*Lx) { dx -= Lx; }
-    		while (dy < -0.5*Ly) { dy += Ly; }
-    		while (dy >  0.5*Ly) { dy -= Ly; }
-		while (dz < -0.5*Lz) { dz += Lz; }
-    		while (dz >  0.5*Lz) { dz -= Lz; }
-    		return sqrt(dx*dx + dy*dy + dz*dz);
-	}
-
 	void com(double& xc, double& yc, double& zc)
 	{
 		xc=0;
@@ -111,15 +93,9 @@ public:
 		zc=0;
 		for (int i = 0; i < np; i++)
 		{
-			xc += px[i]+
-				Lx*((px[i]-px_old[i])*(px[i]-px_old[i])>0.25*Lx*Lx)*
-					sgn(px_old[i]-px[i]);
-			yc += py[i]+
-				Ly*((py[i]-py_old[i])*(py[i]-py_old[i])>0.25*Ly*Ly)*
-					sgn(py_old[i]-py[i]);
-			zc += pz[i]+
-				Lz*((pz[i]-pz_old[i])*(pz[i]-pz_old[i])>0.25*Lz*Lz)*
-					sgn(pz_old[i]-pz[i]);
+			xc += px[i];
+			yc += py[i];
+			zc += pz[i];
 		}
 		xc/=np;
 		yc/=np;
@@ -140,13 +116,6 @@ public:
 		vcx/=np;
 		vcy/=np;
 		vcz/=np;
-	}
-
-	void save_old(void)
-	{
-		px_old = px;
-		py_old = py;
-		pz_old = pz;
 	}
 
 	int n_particles(void) { return np; }

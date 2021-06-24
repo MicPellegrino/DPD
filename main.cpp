@@ -93,23 +93,25 @@ Etot = Ekin+Epot;
 
 for (int i = 1; i<N; i++)
 {
+
 	update_forces(forces, atoms, Epot);
-	if (i%n_steps_collisions==0)
+	
+	for (int j = 0; j<np; j++)
 	{
-		thermostat.dpd_step(atoms, rng, Ekin, dEkin);
+		integrator.advect(atoms.fx[j], atoms.px[j], atoms.vx[j], Ekin);
+		integrator.advect(atoms.fy[j], atoms.py[j], atoms.vy[j], Ekin);
+		integrator.advect(atoms.fz[j], atoms.pz[j], atoms.vz[j], Ekin);
 	}
-	else
-	{
-		for (int j = 0; j<np; j++)
-		{
-			integrator.advect(atoms.fx[j], atoms.px[j], atoms.vx[j], Ekin);
-			integrator.advect(atoms.fy[j], atoms.py[j], atoms.vy[j], Ekin);
-			integrator.advect(atoms.fz[j], atoms.pz[j], atoms.vz[j], Ekin);
-		}
-	}
-	atoms.apply_pbc();
+
 	Etot = Ekin+Epot;
+
+	if (i%n_steps_collisions==0)
+		thermostat.dpd_step(atoms, rng, dEkin);
+
+	// Technically, one need also to re-compute the work because of new POSITIONS
 	Econ = Etot-dEkin;
+
+	atoms.apply_pbc();
 
 	if (i%n_dump_trajec==0)
 	{
@@ -181,7 +183,6 @@ void init_ensemble
 			}
 		}
 	}
-	ens.save_old();
 	for (int i = 0; i<N; ++i)
 	{
 		ens.vx[i] = rng.gaussian(kep);
@@ -214,7 +215,6 @@ void update_forces
 	double fij;
 	for (int i=0; i<np; ++i)
 	{
-		ens.save_old();
 		for (int j=i+1; j<np; ++j)
 		{
 			ens.pbc_dist(i, j, dx, dy, dz, r);
