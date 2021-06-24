@@ -56,11 +56,11 @@ public:
 			ey /= r;
 			ez /= r;
 			v_par = ( v_relx*ex + v_rely*ey + v_relz*ez );
-			// Let's try with a different formula
-			// TO-DO: explicit cutoff
+			/* Let's try with a different formula */
 			f = r < rc ? f0*(1.0-r/rc) : 0.0;
 			// f = f0 / ( 1.0 + ( r / (0.1*rc) ) );
 			// f = r < rc ? f0 : 0.0;
+			// f = f0;
 			g = sqrt(2.0*f*(2.0-f)*T0/m);
 			xi = -f*v_par + g*rng.gaussian(1.0);
 			dvx_temp = xi*ex;
@@ -69,6 +69,12 @@ public:
 			// Conserved energy (?)
 			de += 0.25*( dvx_temp*dvx_temp + dvy_temp*dvy_temp + dvz_temp*dvz_temp ) +
 				0.5*( dvx_temp*v_relx + dvy_temp*v_rely + dvz_temp*v_relz );
+			ens.vx[j] += 0.5*dvx_temp;
+			ens.vy[j] += 0.5*dvy_temp;
+			ens.vz[j] += 0.5*dvz_temp;
+			ens.vx[k] -= 0.5*dvx_temp;
+			ens.vy[k] -= 0.5*dvy_temp;
+			ens.vz[k] -= 0.5*dvz_temp;
 			dvx[j] += 0.5*dvx_temp;
 			dvy[j] += 0.5*dvy_temp;
 			dvz[j] += 0.5*dvz_temp;
@@ -78,12 +84,11 @@ public:
 		}
 		for (int i = 0; i<n_part; i++)
 		{
-			ens.vx[i] += dvx[i];
-			ens.vy[i] += dvy[i];
-			ens.vz[i] += dvz[i];
+			/*
 			ens.px[i] += 0.5*dt*dvx[i];
 			ens.py[i] += 0.5*dt*dvy[i];
 			ens.pz[i] += 0.5*dt*dvz[i];
+			*/
 			// Conserved energy (?)
 			// de += 0.25*( dvx[i]*dvx[i] + dvy[i]*dvy[i] + dvz[i]*dvz[i] ) +
 			//	0.5*( dvx[i]*ens.vx[i] + dvy[i]*ens.vy[i] + dvz[i]*ens.vz[i] );

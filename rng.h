@@ -19,7 +19,7 @@ private:
 
 public:
 	
-	EngineWrapper(int s, int n): seed(s), n_part(n), eng(s), unif(0,1), norm(0,1), idx(0, n) {}
+	EngineWrapper(int s, int n): seed(s), n_part(n), eng(s), unif(0,1), norm(0,1), idx(0, n-1) {}
 
 	double gaussian(double sigma) {	return sigma*norm(eng); }
 	double uniform(double L) { return L*unif(eng); }

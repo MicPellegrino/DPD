@@ -55,6 +55,7 @@ double dt = ip.get_dt();
 double m = ip.get_mass();
 
 EngineWrapper rng(ip.get_seed(), np);
+
 LennardJones forces(ip.get_epsilon(), ip.get_sigma());
 Ensemble atoms(np, Lx, Ly, Lz);
 init_ensemble(atoms, rng, sqrt(T0/m), Lx, Ly, Lz, 1.122462048309373*ip.get_sigma());
@@ -108,10 +109,10 @@ for (int i = 1; i<N; i++)
 	if (i%n_steps_collisions==0)
 		thermostat.dpd_step(atoms, rng, dEkin);
 
+	atoms.apply_pbc();
+
 	// Technically, one need also to re-compute the work because of new POSITIONS
 	Econ = Etot-dEkin;
-
-	atoms.apply_pbc();
 
 	if (i%n_dump_trajec==0)
 	{
