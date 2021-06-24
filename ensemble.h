@@ -7,6 +7,12 @@
 #include <stdio.h>
 #include <cmath>
 
+// To perform c.o.m. unwrapping
+template <typename T> int sgn(T val) 
+{
+    return (T(0) < val) - (val < T(0));
+}
+
 class Ensemble
 {
 
@@ -15,6 +21,9 @@ private:
 	double Lx;
 	double Ly;
 	double Lz;
+	std::vector<double> px_old;
+	std::vector<double> py_old;
+	std::vector<double> pz_old;
 
 public:
 	std::vector<double> px;
@@ -31,7 +40,8 @@ public:
 		np(n), Lx(lx), Ly(ly), Lz(lz), 
 		px(n, 0.0), py(n, 0.0), pz(n, 0.0), 
 		vx(n, 0.0), vy(n, 0.0), vz(n, 0.0),
-		fx(n, 0.0), fy(n, 0.0), fz(n, 0.0)
+		fx(n, 0.0), fy(n, 0.0), fz(n, 0.0),
+		px_old(n, 0.0), py_old(n, 0.0), pz_old(n, 0.0)
 		{ }
 	
 	int n_particles(void) const { return np; }
@@ -49,15 +59,11 @@ public:
 				sprintf(c, "%5d%-5s%5s%5d%8.3f%8.3f%8.3f%8.4f%8.4f%8.4f\n", 
 					i+1, "LJS", "LJS", i+1, px[i], py[i], pz[i], vx[i], vy[i], vz[i] );
 				output_file << c;
-				// ???
-				// delete[] c;
 			}
 			sprintf(c, "%10.5f%10.5f%10.5f\n", Lx, Ly, Lz);
 			output_file << c;			
 			output_file.close();
   		}
-		// ???	
-		// delete[] c;
 	}
 
 	void apply_pbc(void)
@@ -96,6 +102,51 @@ public:
 		while (dz < -0.5*Lz) { dz += Lz; }
     		while (dz >  0.5*Lz) { dz -= Lz; }
     		return sqrt(dx*dx + dy*dy + dz*dz);
+	}
+
+	void com(double& xc, double& yc, double& zc)
+	{
+		xc=0;
+		yc=0;
+		zc=0;
+		for (int i = 0; i < np; i++)
+		{
+			xc += px[i]+
+				Lx*((px[i]-px_old[i])*(px[i]-px_old[i])>0.25*Lx*Lx)*
+					sgn(px_old[i]-px[i]);
+			yc += py[i]+
+				Ly*((py[i]-py_old[i])*(py[i]-py_old[i])>0.25*Ly*Ly)*
+					sgn(py_old[i]-py[i]);
+			zc += pz[i]+
+				Lz*((pz[i]-pz_old[i])*(pz[i]-pz_old[i])>0.25*Lz*Lz)*
+					sgn(pz_old[i]-pz[i]);
+		}
+		xc/=np;
+		yc/=np;
+		zc/=np;
+	}
+
+	void drift(double& vcx, double& vcy, double& vcz)
+	{
+		vcx=0;
+		vcy=0;
+		vcz=0;
+		for (int i = 0; i < np; i++)
+		{
+			vcx += vx[i];
+			vcy += vy[i];
+			vcz += vz[i];
+		}
+		vcx/=np;
+		vcy/=np;
+		vcz/=np;
+	}
+
+	void save_old(void)
+	{
+		px_old = px;
+		py_old = py;
+		pz_old = pz;
 	}
 
 	int n_particles(void) { return np; }

@@ -36,13 +36,18 @@ public:
 		f0(friction), rc(cutoff), n_coll(nc), n_part(np), m(mass), dt(time_step), T0(temp), 
 		dvx(np, 0.0), dvy(np, 0.0), dvz(np, 0.0) { }
 
-	void dpd_step(Ensemble& ens, EngineWrapper& rng, double& e)
+	void dpd_step(Ensemble& ens, EngineWrapper& rng, double& e, double& de)
 	{
 		for (int i = 0; i<n_part; i++)
 		{
-			ens.vx[i] += dt*ens.fx[i]/m;
-			ens.vy[i] += dt*ens.fy[i]/m;
-			ens.vz[i] += dt*ens.fz[i]/m;
+			ens.vx[i] += 0.5*dt*ens.fx[i]/m;
+			ens.vy[i] += 0.5*dt*ens.fy[i]/m;
+			ens.vz[i] += 0.5*dt*ens.fz[i]/m;
+			// Kinetic energy	
+			e += 0.5*m*( ens.vx[i]*ens.vx[i]+ens.vy[i]*ens.vy[i]+ens.vz[i]*ens.vz[i] );
+			ens.vx[i] += 0.5*dt*ens.fx[i]/m;
+			ens.vy[i] += 0.5*dt*ens.fy[i]/m;
+			ens.vz[i] += 0.5*dt*ens.fz[i]/m;
 		}
 		for (int i = 0; i<n_coll; i++)
 		{
@@ -53,17 +58,20 @@ public:
 			v_rely = ens.vy[j] - ens.vy[k];
 			v_relz = ens.vz[j] - ens.vz[k];
 			r = ens.pbc_dist(j, k);
+			// Let's try a different formula
+			// TO-DO: explicit cutoff
 			f = r<rc ? f0*(1.0-r/rc) : 0.0;
-			g = sqrt(0.5*f*(2.0-f)*T0/m);
+			// f = f0 / ( 1.0 + ( r / (0.1*rc) ) );
+			g = sqrt(2.0*f*(2.0-f)*T0/m);
 			dvx_temp = -f*v_relx + g*rng.gaussian(1.0);
 			dvy_temp = -f*v_rely + g*rng.gaussian(1.0);
 			dvz_temp = -f*v_relz + g*rng.gaussian(1.0);
-			dvx[j] += dvx_temp;
-			dvy[j] += dvy_temp;
-			dvz[j] += dvz_temp;
-			dvx[k] -= dvx_temp;
-			dvy[k] -= dvy_temp;
-			dvz[k] -= dvz_temp;
+			dvx[j] += 0.5*dvx_temp;
+			dvy[j] += 0.5*dvy_temp;
+			dvz[j] += 0.5*dvz_temp;
+			dvx[k] -= 0.5*dvx_temp;
+			dvy[k] -= 0.5*dvy_temp;
+			dvz[k] -= 0.5*dvz_temp;
 		}
 		for (int i = 0; i<n_part; i++)
 		{
@@ -73,10 +81,12 @@ public:
 			ens.vx[i] += dvx[i];
 			ens.vy[i] += dvy[i];
 			ens.vz[i] += dvz[i];
+			// Conserved energy
+			de += 0.25*( dvx[i]*dvx[i] + dvy[i]*dvy[i] + dvz[i]*dvz[i] ) +
+				0.5*( dvx[i]*ens.vx[i] + dvy[i]*ens.vy[i] + dvz[i]*ens.vz[i] );
 			dvx[i] = 0.0;
 			dvy[i] = 0.0;
 			dvz[i] = 0.0;
-			e += 0.5*m*( ens.vx[i]*ens.vx[i]+ens.vy[i]*ens.vy[i]+ens.vz[i]*ens.vz[i] );
 		}
 	}
 

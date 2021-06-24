@@ -42,54 +42,61 @@ int main ()
 // Initialization
 
 InputParameters ip("parameters.txt");
-ip.print_info();
-
 double Lx = ip.get_Lx();
 double Ly = ip.get_Ly();
 double Lz = ip.get_Lz();
 double T0 = ip.get_T0();
 int np = ip.get_n_part();
+int n_steps_collisions = ip.get_coll_frq();
+int n_dump_energy = ip.get_n_dump_energy();
+int n_dump_trajec = ip.get_n_dump_trajec();
+int N = ip.get_n_steps();
+double dt = ip.get_dt();
+double m = ip.get_mass();
+
 EngineWrapper rng(ip.get_seed(), np);
 LennardJones forces(ip.get_epsilon(), ip.get_sigma());
 Ensemble atoms(np, Lx, Ly, Lz);
-init_ensemble(atoms, rng, T0, Lx, Ly, Lz, 1.122462048309373*ip.get_sigma());
+init_ensemble(atoms, rng, sqrt(T0/m), Lx, Ly, Lz, 1.122462048309373*ip.get_sigma());
 
 // Testing output
 std::string file_name("conf/conf00000.gro");
 atoms.dump(file_name, Lx, Ly, Lz);
 
 // Testing time marching
-int N = ip.get_n_steps();
-double dt = ip.get_dt();
-double m = ip.get_mass();
 LeapFrog integrator(m, dt);
 DPD thermostat(ip.get_friction(), ip.get_cutoff(), ip.get_coll_num(), np, m, dt, T0);
-Energy ener(dt);
 int n_zeros = 5;
 std::string label;
 double Epot=0;
 double Ekin=0;
+// Difference w.r.t. conserved kinetic energy
+double dEkin=0;
 double Etot=0;
-int n_steps_collisions = ip.get_coll_num();
-int n_dump_energy = ip.get_n_dump_energy();
-int n_dump_trajec = ip.get_n_dump_trajec();
+// Conserved energy
+double Econ=0;
+Energy ener(dt, n_dump_energy);
+double xcom, ycom, zcom;
+double vcx,  vcy,  vcz;
 
 system("rm traj.gro");
 
 update_forces(forces, atoms, Epot);
 for (int j = 0; j<np; j++)
 {
-	integrator.half_step_back(atoms.fx[j], atoms.vx[j]);
-	integrator.half_step_back(atoms.fy[j], atoms.vy[j]);
-	integrator.half_step_back(atoms.fz[j], atoms.vz[j]);
+	integrator.half_step_back(atoms.fx[j], atoms.vx[j], Ekin);
+	integrator.half_step_back(atoms.fy[j], atoms.vy[j], Ekin);
+	integrator.half_step_back(atoms.fz[j], atoms.vz[j], Ekin);
 }
 atoms.apply_pbc();
+Etot = Ekin+Epot;
 
-for (int i = 0; i<N; i++)
+for (int i = 1; i<N; i++)
 {
+	update_forces(forces, atoms, Epot);
 	if (i%n_steps_collisions==0)
 	{
-		thermostat.dpd_step(atoms, rng, Ekin);
+		thermostat.dpd_step(atoms, rng, Ekin, dEkin);
 	}
 	else
 	{
@@ -101,8 +108,8 @@ for (int i = 0; i<N; i++)
 		}
 	}
 	atoms.apply_pbc();
-	update_forces(forces, atoms, Epot);
 	Etot = Ekin+Epot;
+	Econ = Etot-dEkin;
 
 	if (i%n_dump_trajec==0)
 	{
@@ -113,23 +120,36 @@ for (int i = 0; i<N; i++)
 
 	if (i%n_dump_energy==0)
 	{
+		Ekin /= n_dump_energy;
+		Epot /= n_dump_energy;
+		Etot /= n_dump_energy;
+		Econ /= n_dump_energy;
+		atoms.drift(vcx, vcy, vcz);
+		std::cout << "---------------" <<std::endl;
 		std::cout << "Iteration " << i <<std::endl;
 		std::cout << "Ekin = " << Ekin <<std::endl;
 		std::cout << "Epot = " << Epot <<std::endl;
 		std::cout << "Etot = " << Etot <<std::endl;
-		ener.append(Ekin, Epot, Etot);
+		std::cout << "Econ = " << Econ <<std::endl;
+		std::cout << "v_drift = [" << vcx << "," << vcy << "," << vcz << "]" << std::endl;
+		std::cout << "T = " << (2.0/3.0)*(Ekin/np) << std::endl;
+		ener.append_energy(Ekin, Epot, Etot);
+		atoms.com(xcom, ycom, zcom);
+		ener.append_com(xcom, ycom, zcom);
+		Ekin = 0.0;
+		dEkin = 0.0;
+		Epot = 0.0;
+		Etot = 0.0;
+		Econ = 0.0;
 	}
-
-	Ekin = 0;
-	Epot = 0;
-	Etot = 0;
 
 }
 
 
 system("cat conf/*.gro > traj.gro");
 system("rm conf/*.gro");
-ener.output_xvg("ener.xvg");
+ener.output_energy("ener.xvg");
+ener.output_com("com.xvg");
 
 return 0;
 
@@ -154,25 +174,32 @@ void init_ensemble
 		{
 			for (int k = 0; k<N_min && n<N; ++k)
 			{
-				ens.px[n] = i*sp;
-				ens.py[n] = j*sp;
-				ens.pz[n] = k*sp;
+				ens.px[n] = j*sp;
+				ens.py[n] = k*sp;
+				ens.pz[n] = i*sp;
 				n++;
 			}
 		}
 	}
+	ens.save_old();
 	for (int i = 0; i<N; ++i)
 	{
-		// Uniform spatial distribution
-		// Does not work (unless one does a few energy minimization steps before)
-		/*
-		ens.px[i] = rng.uniform(Lx);
-		ens.py[i] = rng.uniform(Ly);
-		ens.pz[i] = rng.uniform(Lz);
-		*/
 		ens.vx[i] = rng.gaussian(kep);
 		ens.vy[i] = rng.gaussian(kep);
 		ens.vz[i] = rng.gaussian(kep);
+	}
+	double xcom, ycom, zcom;
+	ens.com(xcom, ycom, zcom);
+	double vcx, vcy, vcz;
+	ens.drift(vcx, vcy, vcz);
+	for (int i = 0; i<N; ++i)
+	{
+		ens.px[i] += 0.5*Lx-xcom;
+		ens.py[i] += 0.5*Ly-ycom;
+		ens.pz[i] += 0.5*Lz-zcom;
+		ens.vx[i] -= vcx;
+		ens.vy[i] -= vcy;
+		ens.vz[i] -= vcz;
 	}
 }
 
@@ -187,6 +214,7 @@ void update_forces
 	double fij;
 	for (int i=0; i<np; ++i)
 	{
+		ens.save_old();
 		for (int j=i+1; j<np; ++j)
 		{
 			ens.pbc_dist(i, j, dx, dy, dz, r);

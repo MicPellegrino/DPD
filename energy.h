@@ -11,19 +11,29 @@ class Energy
 
 private:
 	double dt;
+	int n_dump;
 	std::vector<double> E_kin;
 	std::vector<double> E_pot;
 	std::vector<double> E_tot;
+	std::vector<double> xcom;
+	std::vector<double> ycom;
+	std::vector<double> zcom;
 
 public:
-	Energy(double time_step): dt(time_step) { }
-	void append(double ek, double ep, double et)
+	Energy(double time_step, int n): dt(time_step), n_dump(n) { }
+	void append_energy(double ek, double ep, double et)
 	{
 		E_kin.push_back(ek);
 		E_pot.push_back(ep);
 		E_tot.push_back(et);
 	}
-	void output_xvg(std::string file_name)
+	void append_com(double x, double y, double z)
+	{
+		xcom.push_back(x);
+		ycom.push_back(y);
+		zcom.push_back(z);
+	}
+	void output_energy(std::string file_name)
 	{
 		char c[256];
 		std::ofstream output_file(file_name);
@@ -39,13 +49,33 @@ public:
 			output_file << "@ s2 legend \"total\"\n";		
 			for (int i = 0; i<E_kin.size(); i++)
 			{
-				sprintf(c, "%.3f %.3f %.3f %.3f\n",  i*dt, E_kin[i], E_pot[i], E_tot[i] );
+				sprintf(c, "%.3f %.3f %.3f %.3f\n",  i*n_dump*dt, E_kin[i], E_pot[i], E_tot[i] );
 				output_file << c;
 			}		
 			output_file.close();
   		}
-		// ???	
-		// delete[] c;
+	}
+	void output_com(std::string file_name)
+	{
+		char c[256];
+		std::ofstream output_file(file_name);
+		if (output_file.is_open())
+  		{
+    			output_file << "# t (1) Xcom (1) Ycom (1) Zcom (1)\n";
+			output_file << "@    title \"Center of mass\"\n";
+			output_file << "@    xaxis  label \"time [1]\"\n";
+			output_file << "@    yaxis  label \"position [1]\"\n";
+			output_file << "@TYPE xy\n";
+ 			output_file << "@ s0 legend \"X\"\n";
+			output_file << "@ s1 legend \"Y\"\n";
+			output_file << "@ s2 legend \"Z\"\n";		
+			for (int i = 0; i<E_kin.size(); i++)
+			{
+				sprintf(c, "%.3f %.3f %.3f %.3f\n",  i*dt, xcom[i], ycom[i], zcom[i] );
+				output_file << c;
+			}		
+			output_file.close();
+  		}
 	}
 
 };
