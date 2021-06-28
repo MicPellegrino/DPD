@@ -27,6 +27,10 @@ private:
 	double cutoff;
 	int coll_frq;
 	int coll_num;
+	double ampx=0;
+	double ampy=0;
+	double ampz=0;
+	double wn=0;
 
 public:
 	InputParameters(std::string file_name) 
@@ -57,6 +61,10 @@ public:
 				else if (label=="cutoff")		iss >> label >> cutoff;
 				else if (label=="coll_frq")		iss >> label >> coll_frq;
 				else if (label=="coll_num")		iss >> label >> coll_num;
+				else if (label=="amplitude_x")		iss >> label >> ampx;
+				else if (label=="amplitude_y")		iss >> label >> ampy;
+				else if (label=="amplitude_z")		iss >> label >> ampz;
+				else if (label=="wave_number")		iss >> label >> wn;
 				label = "";
     			}
     			input.close();
@@ -80,6 +88,10 @@ public:
 	double get_cutoff(void) { return cutoff; }
 	int get_coll_frq(void) { return coll_frq; }
 	int get_coll_num(void) { return coll_num; }
+	double get_amplitude_x(void) { return ampx; }
+	double get_amplitude_y(void) { return ampy; }
+	double get_amplitude_z(void) { return ampz; }
+	double get_wave_number(void) { return wn; }
 
 	void print_info(void) const
 	{
@@ -100,6 +112,10 @@ public:
 		std::cout << "cutoff = " << cutoff << std::endl;
 		std::cout << "coll_frq = " << coll_frq << std::endl;
 		std::cout << "coll_num = " << coll_num << std::endl;
+		std::cout << "amplitude_x = " << ampx << std::endl;
+		std::cout << "amplitude_y = " << ampy << std::endl;
+		std::cout << "amplitude_z = " << ampz << std::endl;
+		std::cout << "wave_number = " << wn << std::endl;
 	}
 
 };

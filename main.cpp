@@ -5,6 +5,7 @@
 #include "input_parameters.h"
 #include "energy.h"
 #include "thermostat.h"
+#include "nonequilibrium.h"
 
 #include <iostream>
 #include <math.h>
@@ -57,6 +58,7 @@ double m = ip.get_mass();
 EngineWrapper rng(ip.get_seed(), np);
 
 LennardJones forces(ip.get_epsilon(), ip.get_sigma());
+CosineForcing cosine(ip.get_amplitude_x(), ip.get_wave_number());
 Ensemble atoms(np, Lx, Ly, Lz);
 init_ensemble(atoms, rng, sqrt(T0/m), Lx, Ly, Lz, 1.122462048309373*ip.get_sigma());
 
@@ -71,10 +73,10 @@ int n_zeros = 5;
 std::string label;
 double Epot=0;
 double Ekin=0;
-// Difference w.r.t. conserved kinetic energy
+// Difference w.r.t. conserved kinetic energy (TO-DO!)
 double dEkin=0;
 double Etot=0;
-// Conserved energy
+// Conserved energy (TO-DO!)
 double Econ=0;
 Energy ener(dt, n_dump_energy);
 double xcom, ycom, zcom;
@@ -96,6 +98,7 @@ for (int i = 1; i<N; i++)
 {
 
 	update_forces(forces, atoms, Epot);
+	cosine.apply(atoms);
 	
 	for (int j = 0; j<np; j++)
 	{
@@ -111,7 +114,9 @@ for (int i = 1; i<N; i++)
 
 	atoms.apply_pbc();
 
-	// Technically, one need also to re-compute the work because of new POSITIONS
+	// TO-DO: compute the whole work that the thermostat does on the system, 
+	// both the kinetic and the potential contribution (since positions are
+	// updated, too)
 	Econ = Etot-dEkin;
 
 	if (i%n_dump_trajec==0)
@@ -162,6 +167,8 @@ return 0;
 /* ----- FUNCTIONS --------------------------------------------------- */
 /* ------------------------------------------------------------------- */
 
+// TO-DO: change how the system is initialized in order to accomodate for a 'thin'
+// simulation box (or a 'slice'); it does not work with the present configuration
 void init_ensemble
 (Ensemble& ens, EngineWrapper& rng, 
  double kep, double Lx, double Ly, double Lz, double sp)

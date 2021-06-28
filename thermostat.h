@@ -43,7 +43,7 @@ public:
 
 	void dpd_step(Ensemble& ens, EngineWrapper& rng, double& de)
 	{
-		for (int i = 0; i<n_coll*n_part; i++)
+		for (int i = 0; i<0.5*n_coll*n_part; i++)
 		{
 			int j, k;
 			j = rng.random_index();
@@ -84,11 +84,9 @@ public:
 		}
 		for (int i = 0; i<n_part; i++)
 		{
-			/*
 			ens.px[i] += 0.5*dt*dvx[i];
 			ens.py[i] += 0.5*dt*dvy[i];
 			ens.pz[i] += 0.5*dt*dvz[i];
-			*/
 			// Conserved energy (?)
 			// de += 0.25*( dvx[i]*dvx[i] + dvy[i]*dvy[i] + dvz[i]*dvz[i] ) +
 			//	0.5*( dvx[i]*ens.vx[i] + dvy[i]*ens.vy[i] + dvz[i]*ens.vz[i] );
