@@ -11,11 +11,13 @@ class InputParameters
 
 private:
 	int seed;
+	std::string init_conf="";
 	int n_part;
 	double Lx;
 	double Ly;
 	double Lz;
 	double T0;
+	double Tref;
 	double epsilon;
 	double sigma;
 	int n_steps;
@@ -31,6 +33,8 @@ private:
 	double ampy=0;
 	double ampz=0;
 	double wn=0;
+	int n_bins=1;
+	int t_binning=1;
 
 public:
 	InputParameters(std::string file_name) 
@@ -45,11 +49,13 @@ public:
 				std::istringstream iss(line);
 				iss >> label;
 				if (label=="seed") 			iss >> label >> seed;
+				else if (label=="init_conf")		iss >> label >> init_conf;
 				else if (label=="n_part") 		iss >> label >> n_part;
 				else if (label=="Lx") 			iss >> label >> Lx;
 				else if (label=="Ly") 			iss >> label >> Ly;
 				else if (label=="Lz") 			iss >> label >> Lz;
 				else if (label=="T0") 			iss >> label >> T0;
+				else if (label=="Tref")			iss >> label >> Tref;
 				else if (label=="epsilon") 		iss >> label >> epsilon;
 				else if (label=="sigma") 		iss >> label >> sigma;
 				else if (label=="n_steps") 		iss >> label >> n_steps;
@@ -65,6 +71,8 @@ public:
 				else if (label=="amplitude_y")		iss >> label >> ampy;
 				else if (label=="amplitude_z")		iss >> label >> ampz;
 				else if (label=="wave_number")		iss >> label >> wn;
+				else if (label=="n_bins")		iss >> label >> n_bins;
+				else if (label=="t_binning")		iss >> label >> t_binning;
 				label = "";
     			}
     			input.close();
@@ -72,11 +80,13 @@ public:
 	}
 
 	int get_seed(void) { return seed; }
+	std::string get_init_conf(void) { return init_conf; }
 	int get_n_part(void) { return n_part; }
 	double get_Lx(void) { return Lx; }
 	double get_Ly(void) { return Ly; }
 	double get_Lz(void) { return Lz; }
 	double get_T0(void) { return T0; }
+	double get_Tref(void) { return Tref; }
 	double get_epsilon(void) { return epsilon; }
 	double get_sigma(void) { return sigma; }
 	int get_n_steps(void) { return n_steps; }
@@ -92,30 +102,36 @@ public:
 	double get_amplitude_y(void) { return ampy; }
 	double get_amplitude_z(void) { return ampz; }
 	double get_wave_number(void) { return wn; }
+	int get_n_bins(void) { return n_bins; }
+	int get_t_binning(void) { return t_binning; }
 
 	void print_info(void) const
 	{
 		std::cout << "seed = " << seed << std::endl;
-		std::cout << "n_part = " << n_part << std::endl;
+		std::cout << "init. configuration = " << init_conf << std::endl;
+		std::cout << "no. part = " << n_part << std::endl;
 		std::cout << "Lx = " << Lx << std::endl;
 		std::cout << "Ly = " << Ly << std::endl;
 		std::cout << "Lz = " << Lz << std::endl;
-		std::cout << "T0 = " << T0 << std::endl;
+		std::cout << "init. temperature = " << T0 << std::endl;
+		std::cout << "ref. temperature = " << T0 << std::endl;
 		std::cout << "epsilon = " << epsilon << std::endl;
 		std::cout << "sigma = " << sigma << std::endl;
-		std::cout << "n_steps = " << n_steps << std::endl;
+		std::cout << "no. steps = " << n_steps << std::endl;
 		std::cout << "dt = " << dt << std::endl;
 		std::cout << "mass = " << mass << std::endl;
-		std::cout << "n_dump_energy = " << n_dump_energy << std::endl;
-		std::cout << "n_dump_trajec = " << n_dump_trajec << std::endl;
+		std::cout << "no. steps energy = " << n_dump_energy << std::endl;
+		std::cout << "no. steps trajec = " << n_dump_trajec << std::endl;
 		std::cout << "friction = " << friction << std::endl;
-		std::cout << "cutoff = " << cutoff << std::endl;
-		std::cout << "coll_frq = " << coll_frq << std::endl;
-		std::cout << "coll_num = " << coll_num << std::endl;
-		std::cout << "amplitude_x = " << ampx << std::endl;
-		std::cout << "amplitude_y = " << ampy << std::endl;
-		std::cout << "amplitude_z = " << ampz << std::endl;
-		std::cout << "wave_number = " << wn << std::endl;
+		std::cout << "dpd cutoff = " << cutoff << std::endl;
+		std::cout << "coll. frequency = " << coll_frq << std::endl;
+		std::cout << "coll. number = " << coll_num << std::endl;
+		std::cout << "force amp. x = " << ampx << std::endl;
+		std::cout << "force amp. y = " << ampy << std::endl;
+		std::cout << "force amp. z  = " << ampz << std::endl;
+		std::cout << "force wave no. = " << wn << std::endl;
+		std::cout << "no. bins = " << n_bins << std::endl;
+		std::cout << "binning frame = " << t_binning << std::endl;
 	}
 
 };

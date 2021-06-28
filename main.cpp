@@ -6,6 +6,7 @@
 #include "energy.h"
 #include "thermostat.h"
 #include "nonequilibrium.h"
+#include "binning.h"
 
 #include <iostream>
 #include <math.h>
@@ -43,14 +44,18 @@ int main ()
 // Initialization
 
 InputParameters ip("parameters.txt");
+ip.print_info();
+
 double Lx = ip.get_Lx();
 double Ly = ip.get_Ly();
 double Lz = ip.get_Lz();
 double T0 = ip.get_T0();
+double Tref = ip.get_Tref();
 int np = ip.get_n_part();
 int n_steps_collisions = ip.get_coll_frq();
 int n_dump_energy = ip.get_n_dump_energy();
 int n_dump_trajec = ip.get_n_dump_trajec();
+int t_binning = ip.get_t_binning();
 int N = ip.get_n_steps();
 double dt = ip.get_dt();
 double m = ip.get_mass();
@@ -60,7 +65,20 @@ EngineWrapper rng(ip.get_seed(), np);
 LennardJones forces(ip.get_epsilon(), ip.get_sigma());
 CosineForcing cosine(ip.get_amplitude_x(), ip.get_wave_number());
 Ensemble atoms(np, Lx, Ly, Lz);
-init_ensemble(atoms, rng, sqrt(T0/m), Lx, Ly, Lz, 1.122462048309373*ip.get_sigma());
+
+// Initial configuration
+std::ifstream input_conf(ip.get_init_conf());
+if (input_conf)
+{
+	input_conf.close();
+	std::cout << "Reading an input configuration: " << ip.get_init_conf() << std::endl;
+	atoms.read_input_conf(ip.get_init_conf());
+}
+else
+{
+	std::cout << "No input file detected" << std::endl; 
+	init_ensemble(atoms, rng, sqrt(T0/m), Lx, Ly, Lz, 1.122462048309373*ip.get_sigma());
+}
 
 // Testing output
 std::string file_name("conf/conf00000.gro");
@@ -68,7 +86,7 @@ atoms.dump(file_name, Lx, Ly, Lz);
 
 // Testing time marching
 LeapFrog integrator(m, dt);
-DPD thermostat(ip.get_friction(), ip.get_cutoff(), ip.get_coll_num(), np, m, dt, T0);
+DPD thermostat(ip.get_friction(), ip.get_cutoff(), ip.get_coll_num(), np, m, dt, Tref);
 int n_zeros = 5;
 std::string label;
 double Epot=0;
@@ -81,6 +99,8 @@ double Econ=0;
 Energy ener(dt, n_dump_energy);
 double xcom, ycom, zcom;
 double vcx,  vcy,  vcz;
+
+Binning binning(ip.get_n_bins(), Lz);
 
 system("rm traj.gro");
 
@@ -151,13 +171,21 @@ for (int i = 1; i<N; i++)
 		Econ = 0.0;
 	}
 
+	// Perform binning only after 1/2 the total no. of steps
+	if ( i%t_binning==0 && i > 0.5*N )
+		binning.add_frame(atoms);
+		
 }
 
+binning.average_over_frames();
 
 system("cat conf/*.gro > traj.gro");
 system("rm conf/*.gro");
+atoms.dump("confout.gro", Lx, Ly, Lz);
 ener.output_energy("ener.xvg");
 ener.output_com("com.xvg");
+binning.output_density("density.xvg");
+binning.output_velocity("velocity.xvg");
 
 return 0;
 
@@ -173,8 +201,8 @@ void init_ensemble
 (Ensemble& ens, EngineWrapper& rng, 
  double kep, double Lx, double Ly, double Lz, double sp)
 {
+	// Cubic lattice
 	std::cout << "Initialize in a cubic lattice with spacing sp = " << sp << std::endl;
-	// Double-check this one! What is the correct kinetic energy?
 	int N = ens.n_particles();
 	int N_min = (int)ceil(cbrt(N));
 	int n = 0;
@@ -191,6 +219,30 @@ void init_ensemble
 			}
 		}
 	}
+	// FCC lattice
+	/*
+	std::cout << "Initialize in a FCC cubic lattice with spacing sp = " << sp << std::endl;
+	int N = ens.n_particles();
+	int N_min = (int)ceil(cbrt(N));
+	int n = 0;
+	double r[4][3] = { {.0, .0, .0}, {.5, .5, .0}, {.0, .5, .5}, {.5, .0, .5} }; 
+	for (int i = 0; i<N_min && n<N; ++i)
+	{
+		for (int j = 0; j<N_min && n<N; ++j)
+		{
+			for (int k = 0; k<N_min && n<N; ++k)
+			{
+				for (int m = 0; m<4 && n<N; ++m)
+				{
+					ens.px[n] = (r[m][0]+i)*sp;
+					ens.py[n] = (r[m][1]+j)*sp;
+					ens.pz[n] = (r[m][2]+k)*sp;
+					n++;
+				}
+			}
+		}
+	}
+	*/
 	for (int i = 0; i<N; ++i)
 	{
 		ens.vx[i] = rng.gaussian(kep);

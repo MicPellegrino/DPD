@@ -6,6 +6,8 @@
 #include <string>
 #include <stdio.h>
 #include <cmath>
+#include <sstream>
+#include <cassert>
 
 // To perform c.o.m. unwrapping
 template <typename T> int sgn(T val) 
@@ -86,6 +88,7 @@ public:
     		r = sqrt(dx*dx + dy*dy + dz*dz);
 	}
 
+	// TO-DO: com unwrapping
 	void com(double& xc, double& yc, double& zc)
 	{
 		xc=0;
@@ -119,6 +122,42 @@ public:
 	}
 
 	int n_particles(void) { return np; }
+
+	void read_input_conf(std::string file_name)
+	{
+		// Reading .gro file
+		std::string line;
+		std::string label;
+  		std::ifstream input(file_name);
+		int n = 0;
+		int dummy1, dummy4;
+		std::string dummy2, dummy3;
+		while ( std::getline (input, line) )
+    		{
+			std::istringstream iss(line);
+			// Skip n==0: it's just the header
+			if (n==1)
+			{
+				int n_atoms;
+				iss >> n_atoms;
+				assert( (n_atoms==np) && "Number of atoms does not match!" );
+			}
+			else if (n==np+3)
+			{
+				double lx, ly, lz;
+				iss >> lx >> ly >> lz;
+				assert( (Lx==lx)&&(Ly==ly)&&(Lz==lz) && "Box dimensions does not match!" );
+			}
+			else if (n>0)
+			{
+				iss >> dummy1 >> dummy2 >> dummy3 >> dummy4 
+					>> px[n-2] >> py[n-2] >> pz[n-2]
+					>> vx[n-2] >> vy[n-2] >> vz[n-2];
+			}
+			n++;
+		}
+		input.close();
+	}
 
 };
 
