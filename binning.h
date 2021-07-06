@@ -7,6 +7,7 @@
 #include <fstream>
 #include <string>
 #include <stdio.h>
+#include <cassert>
 
 class Binning
 {
@@ -32,9 +33,9 @@ public:
 		for (int i = 0; i < np; ++i)
 		{
 			idx = (int)(ens.pz[i]/hz);
-			// Static assert?
+			assert( (idx<Nz) && "Atom position out of binning grid!" );
 			density[idx] += 1.0;
-			velocity[idx] += ens.vz[i];
+			velocity[idx] += ens.vx[i];
 		}
 		frames++;
 	}

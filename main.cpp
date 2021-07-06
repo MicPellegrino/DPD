@@ -29,7 +29,7 @@
 
 void init_ensemble
 (Ensemble&, EngineWrapper&, 
- double, double, double, double, double);
+ double, double, double, double, double, double);
 
 void update_forces
 (LennardJones&, Ensemble&, double&);
@@ -59,11 +59,13 @@ int t_binning = ip.get_t_binning();
 int N = ip.get_n_steps();
 double dt = ip.get_dt();
 double m = ip.get_mass();
+double vx0 = ip.get_vx0();
 
 EngineWrapper rng(ip.get_seed(), np);
 
 LennardJones forces(ip.get_epsilon(), ip.get_sigma());
-CosineForcing cosine(ip.get_amplitude_x(), ip.get_wave_number());
+CosineForcing forcing(ip.get_amplitude_x(), ip.get_wave_number());
+// ConstantForcing forcing(ip.get_amplitude_x(), ip.get_amplitude_y(), ip.get_amplitude_z());
 Ensemble atoms(np, Lx, Ly, Lz);
 
 // Initial configuration
@@ -77,7 +79,7 @@ if (input_conf)
 else
 {
 	std::cout << "No input file detected" << std::endl; 
-	init_ensemble(atoms, rng, sqrt(T0/m), Lx, Ly, Lz, 1.122462048309373*ip.get_sigma());
+	init_ensemble(atoms, rng, sqrt(T0/m), Lx, Ly, Lz, 1.122462048309373*ip.get_sigma(), vx0);
 }
 
 // Testing output
@@ -91,11 +93,12 @@ int n_zeros = 5;
 std::string label;
 double Epot=0;
 double Ekin=0;
-// Difference w.r.t. conserved kinetic energy (TO-DO!)
-double dEkin=0;
 double Etot=0;
-// Conserved energy (TO-DO!)
+// Conserved energy
+double dEkin=0;
+double dEpot=0;
 double Econ=0;
+double T=0;
 Energy ener(dt, n_dump_energy);
 double xcom, ycom, zcom;
 double vcx,  vcy,  vcz;
@@ -118,7 +121,7 @@ for (int i = 1; i<N; i++)
 {
 
 	update_forces(forces, atoms, Epot);
-	cosine.apply(atoms);
+	forcing.apply(atoms);
 	
 	for (int j = 0; j<np; j++)
 	{
@@ -127,17 +130,17 @@ for (int i = 1; i<N; i++)
 		integrator.advect(atoms.fz[j], atoms.pz[j], atoms.vz[j], Ekin);
 	}
 
-	Etot = Ekin+Epot;
+	Etot = Ekin + Epot;
 
 	if (i%n_steps_collisions==0)
-		thermostat.dpd_step(atoms, rng, dEkin);
+		thermostat.dpd_step(atoms, rng, dEkin, dEpot);
 
 	atoms.apply_pbc();
 
 	// TO-DO: compute the whole work that the thermostat does on the system, 
 	// both the kinetic and the potential contribution (since positions are
 	// updated, too)
-	Econ = Etot-dEkin;
+	Econ = Etot-dEkin+dEpot;
 
 	if (i%n_dump_trajec==0)
 	{
@@ -158,16 +161,19 @@ for (int i = 1; i<N; i++)
 		std::cout << "Ekin = " << Ekin <<std::endl;
 		std::cout << "Epot = " << Epot <<std::endl;
 		std::cout << "Etot = " << Etot <<std::endl;
-		std::cout << "Econ = " << Econ <<std::endl;
+		// std::cout << "Econ = " << Econ <<std::endl;
 		std::cout << "v_drift = [" << vcx << "," << vcy << "," << vcz << "]" << std::endl;
-		std::cout << "T = " << (2.0/3.0)*(Ekin/np) << std::endl;
+		T = atoms.temperature(m);
+		std::cout << "T = " << T << std::endl;
 		ener.append_energy(Ekin, Epot, Etot);
+		ener.append_temp(T);
 		atoms.com(xcom, ycom, zcom);
 		ener.append_com(xcom, ycom, zcom);
 		Ekin = 0.0;
-		dEkin = 0.0;
 		Epot = 0.0;
 		Etot = 0.0;
+		dEkin = 0.0;
+		dEpot = 0.0;
 		Econ = 0.0;
 	}
 
@@ -184,6 +190,7 @@ system("rm conf/*.gro");
 atoms.dump("confout.gro", Lx, Ly, Lz);
 ener.output_energy("ener.xvg");
 ener.output_com("com.xvg");
+ener.output_temperature("temperature.xvg");
 binning.output_density("density.xvg");
 binning.output_velocity("velocity.xvg");
 
@@ -199,7 +206,7 @@ return 0;
 // simulation box (or a 'slice'); it does not work with the present configuration
 void init_ensemble
 (Ensemble& ens, EngineWrapper& rng, 
- double kep, double Lx, double Ly, double Lz, double sp)
+ double kep, double Lx, double Ly, double Lz, double sp, double vx0)
 {
 	// Cubic lattice
 	std::cout << "Initialize in a cubic lattice with spacing sp = " << sp << std::endl;
@@ -262,6 +269,8 @@ void init_ensemble
 		ens.vy[i] -= vcy;
 		ens.vz[i] -= vcz;
 	}
+	for (int i=0; i<N; ++i)
+		ens.vx[i] += vx0;
 }
 
 void update_forces

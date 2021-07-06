@@ -35,6 +35,7 @@ private:
 	double wn=0;
 	int n_bins=1;
 	int t_binning=1;
+	double vx0=0.0; 
 
 public:
 	InputParameters(std::string file_name) 
@@ -73,6 +74,7 @@ public:
 				else if (label=="wave_number")		iss >> label >> wn;
 				else if (label=="n_bins")		iss >> label >> n_bins;
 				else if (label=="t_binning")		iss >> label >> t_binning;
+				else if (label=="drift_velocity")	iss >> label >> vx0;
 				label = "";
     			}
     			input.close();
@@ -104,6 +106,7 @@ public:
 	double get_wave_number(void) { return wn; }
 	int get_n_bins(void) { return n_bins; }
 	int get_t_binning(void) { return t_binning; }
+	double get_vx0(void) { return vx0; }
 
 	void print_info(void) const
 	{
@@ -132,6 +135,7 @@ public:
 		std::cout << "force wave no. = " << wn << std::endl;
 		std::cout << "no. bins = " << n_bins << std::endl;
 		std::cout << "binning frame = " << t_binning << std::endl;
+		std::cout << "drift velocity =" << vx0 << std::endl;
 	}
 
 };

@@ -41,9 +41,9 @@ public:
 		f0(friction), rc(cutoff), n_coll(nc), n_part(np), m(mass), dt(time_step), T0(temp), 
 		dvx(np, 0.0), dvy(np, 0.0), dvz(np, 0.0) { }
 
-	void dpd_step(Ensemble& ens, EngineWrapper& rng, double& de)
+	void dpd_step(Ensemble& ens, EngineWrapper& rng, double& dek, double& dep)
 	{
-		for (int i = 0; i<0.5*n_coll*n_part; i++)
+		for (int i = 0; i<std::ceil(0.5*n_coll*n_part); i++)
 		{
 			int j, k;
 			j = rng.random_index();
@@ -66,9 +66,13 @@ public:
 			dvx_temp = xi*ex;
 			dvy_temp = xi*ey;
 			dvz_temp = xi*ez;
-			// Conserved energy (?)
-			de += 0.25*( dvx_temp*dvx_temp + dvy_temp*dvy_temp + dvz_temp*dvz_temp ) +
+			// Conserved kinetic energy ???
+			dek += 0.25*( dvx_temp*dvx_temp + dvy_temp*dvy_temp + dvz_temp*dvz_temp ) +
 				0.5*( dvx_temp*v_relx + dvy_temp*v_rely + dvz_temp*v_relz );
+			// Conserved potential energy ???
+			dep += 0.25*dt*( dvx_temp*(ens.fx[j]-ens.fx[k]) 
+					+ dvy_temp*(ens.fy[j]-ens.fy[k]) 
+					+ dvz_temp*(ens.fz[j]-ens.fz[k]) );
 			ens.vx[j] += 0.5*dvx_temp;
 			ens.vy[j] += 0.5*dvy_temp;
 			ens.vz[j] += 0.5*dvz_temp;
@@ -87,9 +91,6 @@ public:
 			ens.px[i] += 0.5*dt*dvx[i];
 			ens.py[i] += 0.5*dt*dvy[i];
 			ens.pz[i] += 0.5*dt*dvz[i];
-			// Conserved energy (?)
-			// de += 0.25*( dvx[i]*dvx[i] + dvy[i]*dvy[i] + dvz[i]*dvz[i] ) +
-			//	0.5*( dvx[i]*ens.vx[i] + dvy[i]*ens.vy[i] + dvz[i]*ens.vz[i] );
 			dvx[i] = 0.0;
 			dvy[i] = 0.0;
 			dvz[i] = 0.0;

@@ -34,12 +34,16 @@ public:
 	std::vector<double> fx;
 	std::vector<double> fy;
 	std::vector<double> fz;
+	std::vector<int> period_x;
+	std::vector<int> period_y;
+	std::vector<int> period_z;
 
 	Ensemble(int n, double lx, double ly, double lz): 
 		np(n), Lx(lx), Ly(ly), Lz(lz), 
 		px(n, 0.0), py(n, 0.0), pz(n, 0.0), 
 		vx(n, 0.0), vy(n, 0.0), vz(n, 0.0),
-		fx(n, 0.0), fy(n, 0.0), fz(n, 0.0)
+		fx(n, 0.0), fy(n, 0.0), fz(n, 0.0),
+		period_x(n, 0), period_y(n, 0), period_z(n, 0)
 		{ }
 	
 	int n_particles(void) const { return np; }
@@ -68,8 +72,11 @@ public:
 	{
 		for (int j = 0; j<np; ++j)
 		{
+			period_x[j] += std::floor(px[j]/Lx);
 			px[j] = px[j] - Lx*std::floor(px[j]/Lx);
+			period_y[j] += std::floor(py[j]/Ly);
 			py[j] = py[j] - Ly*std::floor(py[j]/Ly);
+			period_z[j] += std::floor(pz[j]/Lz);
 			pz[j] = pz[j] - Lz*std::floor(pz[j]/Lz);
 		}
 	}
@@ -88,7 +95,6 @@ public:
     		r = sqrt(dx*dx + dy*dy + dz*dz);
 	}
 
-	// TO-DO: com unwrapping
 	void com(double& xc, double& yc, double& zc)
 	{
 		xc=0;
@@ -96,9 +102,9 @@ public:
 		zc=0;
 		for (int i = 0; i < np; i++)
 		{
-			xc += px[i];
-			yc += py[i];
-			zc += pz[i];
+			xc += px[i]+Lx*period_x[i];
+			yc += py[i]+Ly*period_y[i];
+			zc += pz[i]+Lz*period_z[i];
 		}
 		xc/=np;
 		yc/=np;
@@ -119,6 +125,21 @@ public:
 		vcx/=np;
 		vcy/=np;
 		vcz/=np;
+	}
+
+	double temperature(double m)
+	{
+		double vcx=0;
+		double vcy=0;
+		double vcz=0;
+		double T;
+		drift(vcx, vcy, vcz);
+		for (int i = 0; i < np; i++)
+		{
+			T += (1.0/(3.0*np)) * m * (vx[i]-vcx)*(vx[i]-vcx);
+			T += (1.0/(3.0*np)) * m * (vy[i]-vcy)*(vy[i]-vcy);
+			T += (1.0/(3.0*np)) * m * (vz[i]-vcz)*(vz[i]-vcz);
+		}
 	}
 
 	int n_particles(void) { return np; }
