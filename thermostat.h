@@ -7,8 +7,39 @@
 #include <vector>
 #include <cmath>
 
+class Andersen
+{
+
+private:
+	double T0;
+	double m;
+	int n_coll;
+	int n_part;
+	double sdev;
+
+public:
+	Andersen(double temp, double mass, int nc, int np):
+		T0(temp), m(mass), n_coll(nc), n_part(np)
+		{
+			sdev = sqrt(T0/m);
+		}
+
+	void andersen_step(Ensemble& ens, EngineWrapper& rng, double& dek, double& dep)
+	{
+		for (int i = 0; i < std::ceil(0.5*n_coll*n_part); ++i)
+		{
+			int j = rng.random_index();
+			ens.vx[j] = rng.gaussian(sdev);
+			ens.vy[j] = rng.gaussian(sdev);
+			ens.vz[j] = rng.gaussian(sdev);
+		}
+	}
+
+};
+
 class DPD
 {
+
 private:
 	double f0;
 	double rc;

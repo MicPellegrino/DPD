@@ -88,7 +88,8 @@ atoms.dump(file_name, Lx, Ly, Lz);
 
 // Testing time marching
 LeapFrog integrator(m, dt);
-DPD thermostat(ip.get_friction(), ip.get_cutoff(), ip.get_coll_num(), np, m, dt, Tref);
+// DPD thermostat(ip.get_friction(), ip.get_cutoff(), ip.get_coll_num(), np, m, dt, Tref);
+Andersen thermostat(Tref, m, ip.get_coll_num(), np);
 int n_zeros = 5;
 std::string label;
 double Epot=0;
@@ -133,7 +134,10 @@ for (int i = 1; i<N; i++)
 	Etot = Ekin + Epot;
 
 	if (i%n_steps_collisions==0)
-		thermostat.dpd_step(atoms, rng, dEkin, dEpot);
+	{
+		// thermostat.dpd_step(atoms, rng, dEkin, dEpot);
+		thermostat.andersen_step(atoms, rng, dEkin, dEpot);
+	}
 
 	atoms.apply_pbc();
 
