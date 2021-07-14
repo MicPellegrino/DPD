@@ -24,7 +24,7 @@ public:
 			sdev = sqrt(T0/m);
 		}
 
-	void andersen_step(Ensemble& ens, EngineWrapper& rng, double& dek, double& dep)
+	void step(Ensemble& ens, EngineWrapper& rng, double& dek, double& dep)
 	{
 		for (int i = 0; i < std::ceil(0.5*n_coll*n_part); ++i)
 		{
@@ -72,7 +72,7 @@ public:
 		f0(friction), rc(cutoff), n_coll(nc), n_part(np), m(mass), dt(time_step), T0(temp), 
 		dvx(np, 0.0), dvy(np, 0.0), dvz(np, 0.0) { }
 
-	void dpd_step(Ensemble& ens, EngineWrapper& rng, double& dek, double& dep)
+	void step(Ensemble& ens, EngineWrapper& rng, double& dek, double& dep)
 	{
 		for (int i = 0; i<std::ceil(0.5*n_coll*n_part); i++)
 		{
@@ -87,7 +87,7 @@ public:
 			ey /= r;
 			ez /= r;
 			v_par = ( v_relx*ex + v_rely*ey + v_relz*ez );
-			/* Let's try with a different formula */
+			/* Let's try some different formula */
 			f = r < rc ? f0*(1.0-r/rc) : 0.0;
 			// f = f0 / ( 1.0 + ( r / (0.1*rc) ) );
 			// f = r < rc ? f0 : 0.0;
@@ -110,13 +110,22 @@ public:
 			ens.vx[k] -= 0.5*dvx_temp;
 			ens.vy[k] -= 0.5*dvy_temp;
 			ens.vz[k] -= 0.5*dvz_temp;
+			ens.px[j] += 0.25*dt*dvx_temp;
+			ens.py[j] += 0.25*dt*dvy_temp;
+			ens.pz[j] += 0.25*dt*dvz_temp;
+			ens.px[k] -= 0.25*dt*dvx_temp;
+			ens.py[k] -= 0.25*dt*dvy_temp;
+			ens.pz[k] -= 0.25*dt*dvz_temp;
+			/*
 			dvx[j] += 0.5*dvx_temp;
 			dvy[j] += 0.5*dvy_temp;
 			dvz[j] += 0.5*dvz_temp;
 			dvx[k] -= 0.5*dvx_temp;
 			dvy[k] -= 0.5*dvy_temp;
 			dvz[k] -= 0.5*dvz_temp;
+			*/
 		}
+		/*
 		for (int i = 0; i<n_part; i++)
 		{
 			ens.px[i] += 0.5*dt*dvx[i];
@@ -126,6 +135,7 @@ public:
 			dvy[i] = 0.0;
 			dvz[i] = 0.0;
 		}
+		*/
 	}
 
 };

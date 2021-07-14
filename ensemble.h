@@ -136,9 +136,9 @@ public:
 		drift(vcx, vcy, vcz);
 		for (int i = 0; i < np; i++)
 		{
-			T += (1.0/(3.0*np)) * m * (vx[i]-vcx)*(vx[i]-vcx);
-			T += (1.0/(3.0*np)) * m * (vy[i]-vcy)*(vy[i]-vcy);
-			T += (1.0/(3.0*np)) * m * (vz[i]-vcz)*(vz[i]-vcz);
+			T += (1.0/(3.0*np-3.0)) * m * (vx[i]-vcx)*(vx[i]-vcx);
+			T += (1.0/(3.0*np-3.0)) * m * (vy[i]-vcy)*(vy[i]-vcy);
+			T += (1.0/(3.0*np-3.0)) * m * (vz[i]-vcz)*(vz[i]-vcz);
 		}
 	}
 

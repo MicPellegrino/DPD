@@ -62,7 +62,7 @@ public:
 			output_file << "@TYPE xy\n";		
 			for (int i = 0; i<Nz; i++)
 			{
-				sprintf(c, "%.3f %.3f\n", density[i], hz*((double)i+0.5) );
+				sprintf(c, "%.5f %.5f\n", density[i], hz*((double)i+0.5) );
 				output_file << c;
 			}		
 			output_file.close();
@@ -82,7 +82,7 @@ public:
 			output_file << "@TYPE xy\n";		
 			for (int i = 0; i<Nz; i++)
 			{
-				sprintf(c, "%.3f %.3f\n", velocity[i], hz*((double)i+0.5) );
+				sprintf(c, "%.5f %.5f\n", velocity[i], hz*((double)i+0.5) );
 				output_file << c;
 			}		
 			output_file.close();

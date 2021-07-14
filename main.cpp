@@ -7,11 +7,13 @@
 #include "thermostat.h"
 #include "nonequilibrium.h"
 #include "binning.h"
+#include "radial.h"
 
 #include <iostream>
 #include <math.h>
 #include <string>
 #include <stdlib.h>
+#include <algorithm>
 
 // Just for dome static preliminary tests
 
@@ -32,7 +34,7 @@ void init_ensemble
  double, double, double, double, double, double);
 
 void update_forces
-(LennardJones&, Ensemble&, double&);
+(LennardJones&, Ensemble&, double&, RadialDistribution&);
 
 /* ------------------------------------------------------------------- */
 /* ----- MAIN -------------------------------------------------------- */
@@ -60,6 +62,7 @@ int N = ip.get_n_steps();
 double dt = ip.get_dt();
 double m = ip.get_mass();
 double vx0 = ip.get_vx0();
+std::string thermo_type = ip.get_thermostat();
 
 EngineWrapper rng(ip.get_seed(), np);
 
@@ -88,8 +91,8 @@ atoms.dump(file_name, Lx, Ly, Lz);
 
 // Testing time marching
 LeapFrog integrator(m, dt);
-// DPD thermostat(ip.get_friction(), ip.get_cutoff(), ip.get_coll_num(), np, m, dt, Tref);
-Andersen thermostat(Tref, m, ip.get_coll_num(), np);
+DPD thermostat_dpd(ip.get_friction(), ip.get_cutoff(), ip.get_coll_num(), np, m, dt, Tref);
+Andersen thermostat_and(Tref, m, ip.get_coll_num(), np);
 int n_zeros = 5;
 std::string label;
 double Epot=0;
@@ -104,11 +107,12 @@ Energy ener(dt, n_dump_energy);
 double xcom, ycom, zcom;
 double vcx,  vcy,  vcz;
 
-Binning binning(ip.get_n_bins(), Lz);
+Binning binning(ip.get_n_bins_v(), Lz);
+RadialDistribution g(ip.get_n_bins_g(), sqrt(3.0)*0.5*std::max(Lx,std::max(Ly,Lz)));
 
 system("rm traj.gro");
 
-update_forces(forces, atoms, Epot);
+update_forces(forces, atoms, Epot, g);
 for (int j = 0; j<np; j++)
 {
 	integrator.half_step_back(atoms.fx[j], atoms.vx[j], Ekin);
@@ -121,7 +125,7 @@ Etot = Ekin+Epot;
 for (int i = 1; i<N; i++)
 {
 
-	update_forces(forces, atoms, Epot);
+	update_forces(forces, atoms, Epot, g);
 	forcing.apply(atoms);
 	
 	for (int j = 0; j<np; j++)
@@ -135,8 +139,10 @@ for (int i = 1; i<N; i++)
 
 	if (i%n_steps_collisions==0)
 	{
-		// thermostat.dpd_step(atoms, rng, dEkin, dEpot);
-		thermostat.andersen_step(atoms, rng, dEkin, dEpot);
+		if (thermo_type == "dpd") 
+			thermostat_dpd.step(atoms, rng, dEkin, dEpot);
+		else if (thermo_type == "andersen")
+			thermostat_and.step(atoms, rng, dEkin, dEpot);
 	}
 
 	atoms.apply_pbc();
@@ -159,6 +165,7 @@ for (int i = 1; i<N; i++)
 		Epot /= n_dump_energy;
 		Etot /= n_dump_energy;
 		Econ /= n_dump_energy;
+		g.avg_frame(n_dump_energy);
 		atoms.drift(vcx, vcy, vcz);
 		std::cout << "---------------" <<std::endl;
 		std::cout << "Iteration " << i <<std::endl;
@@ -188,6 +195,10 @@ for (int i = 1; i<N; i++)
 }
 
 binning.average_over_frames();
+g.avg_distribution(N/n_dump_energy);
+
+std::cout << "---------------" <<std::endl;
+std::cout << "Writing output .gro and .xvg files" << std::endl;
 
 system("cat conf/*.gro > traj.gro");
 system("rm conf/*.gro");
@@ -197,6 +208,7 @@ ener.output_com("com.xvg");
 ener.output_temperature("temperature.xvg");
 binning.output_density("density.xvg");
 binning.output_velocity("velocity.xvg");
+g.output_distribution("radial_distribution.xvg");
 
 return 0;
 
@@ -278,7 +290,7 @@ void init_ensemble
 }
 
 void update_forces
-(LennardJones& lj, Ensemble& ens, double& e)
+(LennardJones& lj, Ensemble& ens, double& e, RadialDistribution& g)
 {
 	int np = ens.n_particles();
 	std::fill(ens.fx.begin(), ens.fx.end(), 0.0);
@@ -291,6 +303,7 @@ void update_forces
 		for (int j=i+1; j<np; ++j)
 		{
 			ens.pbc_dist(i, j, dx, dy, dz, r);
+			g.add_to_bin(r);
 			fij = lj.pair_force(r);
 			e += lj.pair_energy(r);
 			ens.fx[i] += fij * dx/r;

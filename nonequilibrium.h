@@ -51,7 +51,10 @@ public:
 	{
 		int np = ens.n_particles();
 		for (int i = 0; i < np; ++i)
-			ens.fx[i] += amp*std::cos(wn*ens.pz[i]+0.5*M_PI);
+		{
+			ens.fx[i] += amp*std::cos(wn*ens.pz[i]);
+			// ens.fx[i] += amp*std::cos(wn*ens.pz[i]+0.5*M_PI);
+		}
 	}
 
 };

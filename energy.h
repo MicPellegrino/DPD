@@ -54,7 +54,7 @@ public:
 			output_file << "@ s2 legend \"total\"\n";		
 			for (int i = 0; i<E_kin.size(); i++)
 			{
-				sprintf(c, "%.3f %.3f %.3f %.3f\n",  i*n_dump*dt, E_kin[i], E_pot[i], E_tot[i] );
+				sprintf(c, "%.5f %.5f %.5f %.5f\n",  i*n_dump*dt, E_kin[i], E_pot[i], E_tot[i] );
 				output_file << c;
 			}		
 			output_file.close();
@@ -76,7 +76,7 @@ public:
 			output_file << "@ s2 legend \"Z\"\n";		
 			for (int i = 0; i<xcom.size(); i++)
 			{
-				sprintf(c, "%.3f %.3f %.3f %.3f\n",  i*dt, xcom[i], ycom[i], zcom[i] );
+				sprintf(c, "%.5f %.5f %.5f %.5f\n",  i*n_dump*dt, xcom[i], ycom[i], zcom[i] );
 				output_file << c;
 			}		
 			output_file.close();
@@ -95,7 +95,7 @@ public:
 			output_file << "@TYPE xy\n";		
 			for (int i = 0; i<temperature.size(); i++)
 			{
-				sprintf(c, "%.3f %.3f\n",  i*n_dump*dt, temperature[i]);
+				sprintf(c, "%.5f %.5f\n",  i*n_dump*dt, temperature[i]);
 				output_file << c;
 			}		
 			output_file.close();

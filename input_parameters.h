@@ -33,9 +33,12 @@ private:
 	double ampy=0;
 	double ampz=0;
 	double wn=0;
-	int n_bins=1;
+	int n_bins_v=1;
+	int n_bins_g=1;
 	int t_binning=1;
-	double vx0=0.0; 
+	double vx0=0.0;
+	std::string thermostat="";
+	std::string integrator="";
 
 public:
 	InputParameters(std::string file_name) 
@@ -72,9 +75,12 @@ public:
 				else if (label=="amplitude_y")		iss >> label >> ampy;
 				else if (label=="amplitude_z")		iss >> label >> ampz;
 				else if (label=="wave_number")		iss >> label >> wn;
-				else if (label=="n_bins")		iss >> label >> n_bins;
+				else if (label=="n_bins_v")		iss >> label >> n_bins_v;
+				else if (label=="n_bins_g")		iss >> label >> n_bins_g;
 				else if (label=="t_binning")		iss >> label >> t_binning;
 				else if (label=="drift_velocity")	iss >> label >> vx0;
+				else if (label=="thermostat")		iss >> label >> thermostat;
+				else if (label=="integrator")		iss >> label >> integrator;
 				label = "";
     			}
     			input.close();
@@ -104,9 +110,12 @@ public:
 	double get_amplitude_y(void) { return ampy; }
 	double get_amplitude_z(void) { return ampz; }
 	double get_wave_number(void) { return wn; }
-	int get_n_bins(void) { return n_bins; }
+	int get_n_bins_v(void) { return n_bins_v; }
+	int get_n_bins_g(void) { return n_bins_g; }
 	int get_t_binning(void) { return t_binning; }
 	double get_vx0(void) { return vx0; }
+	std::string get_thermostat(void) { return thermostat; }
+	std::string get_integrator(void) { return integrator; }
 
 	void print_info(void) const
 	{
@@ -133,9 +142,12 @@ public:
 		std::cout << "force amp. y = " << ampy << std::endl;
 		std::cout << "force amp. z  = " << ampz << std::endl;
 		std::cout << "force wave no. = " << wn << std::endl;
-		std::cout << "no. bins = " << n_bins << std::endl;
+		std::cout << "no. bins velocity = " << n_bins_v << std::endl;
+		std::cout << "no. bins radial = "  << n_bins_g << std::endl;
 		std::cout << "binning frame = " << t_binning << std::endl;
-		std::cout << "drift velocity =" << vx0 << std::endl;
+		std::cout << "drift velocity = " << vx0 << std::endl;
+		std::cout << "themostat type = " << thermostat << std::endl;
+		std::cout << "integrator type = " << integrator << std::endl;
 	}
 
 };
