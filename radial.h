@@ -56,6 +56,7 @@ public:
 			d[i] /= (r*r);
 			s+=d[i];
 		}
+		s *= delta_r;
 		for (int i=0; i<n_bins; ++i)
 			d[i] /= s;
 		char c[256];
