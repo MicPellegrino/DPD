@@ -8,6 +8,7 @@
 #include "nonequilibrium.h"
 #include "binning.h"
 #include "radial.h"
+#include "timer.h"
 
 #include <iostream>
 #include <math.h>
@@ -63,11 +64,12 @@ double dt = ip.get_dt();
 double m = ip.get_mass();
 double vx0 = ip.get_vx0();
 std::string thermo_type = ip.get_thermostat();
+std::string integrator_type = ip.get_integrator();
 
 EngineWrapper rng(ip.get_seed(), np);
 
 LennardJones forces(ip.get_epsilon(), ip.get_sigma());
-CosineForcing forcing(ip.get_amplitude_x(), ip.get_wave_number());
+CosineForcing forcing(ip.get_amplitude_x(), Lz);
 // ConstantForcing forcing(ip.get_amplitude_x(), ip.get_amplitude_y(), ip.get_amplitude_z());
 Ensemble atoms(np, Lx, Ly, Lz);
 
@@ -78,6 +80,7 @@ if (input_conf)
 	input_conf.close();
 	std::cout << "Reading an input configuration: " << ip.get_init_conf() << std::endl;
 	atoms.read_input_conf(ip.get_init_conf());
+	atoms.correct_com();
 }
 else
 {
@@ -90,7 +93,8 @@ std::string file_name("conf/conf00000.gro");
 atoms.dump(file_name, Lx, Ly, Lz);
 
 // Testing time marching
-LeapFrog integrator(m, dt);
+LeapFrog integrator_lf(m, dt);
+VelocityVerlet integrator_vv(m, dt);
 DPD thermostat_dpd(ip.get_friction(), ip.get_cutoff(), ip.get_coll_num(), np, m, dt, Tref);
 Andersen thermostat_and(Tref, m, ip.get_coll_num(), np);
 int n_zeros = 5;
@@ -98,11 +102,13 @@ std::string label;
 double Epot=0;
 double Ekin=0;
 double Etot=0;
+double Etot2=0;
 // Conserved energy
 double dEkin=0;
 double dEpot=0;
 double Econ=0;
 double T=0;
+double cv=0;
 Energy ener(dt, n_dump_energy);
 double xcom, ycom, zcom;
 double vcx,  vcy,  vcz;
@@ -113,39 +119,89 @@ RadialDistribution g(ip.get_n_bins_g(), sqrt(3.0)*0.5*std::max(Lx,std::max(Ly,Lz
 system("rm traj.gro");
 
 update_forces(forces, atoms, Epot, g);
-for (int j = 0; j<np; j++)
+forcing.apply(atoms);
+
+// If we integrate with Leap-Frog, then initial velocities have to 'lag' before initial positions by
+// half a time-step
+if (integrator_type=="lf")
 {
-	integrator.half_step_back(atoms.fx[j], atoms.vx[j], Ekin);
-	integrator.half_step_back(atoms.fy[j], atoms.vy[j], Ekin);
-	integrator.half_step_back(atoms.fz[j], atoms.vz[j], Ekin);
+for (int j = 0; j<np; j++)
+	{
+		integrator_lf.half_step_back(atoms.fx[j], atoms.vx[j], Ekin);
+		integrator_lf.half_step_back(atoms.fy[j], atoms.vy[j], Ekin);
+		integrator_lf.half_step_back(atoms.fz[j], atoms.vz[j], Ekin);
+	}
 }
+
 atoms.apply_pbc();
 Etot = Ekin+Epot;
+Etot2 = Etot*Etot;
+
+Timer sw1;
+sw1.start();
 
 for (int i = 1; i<N; i++)
 {
 
-	update_forces(forces, atoms, Epot, g);
-	forcing.apply(atoms);
-	
-	for (int j = 0; j<np; j++)
+	// Leap-Frog loop
+	if (integrator_type=="lf")
 	{
-		integrator.advect(atoms.fx[j], atoms.px[j], atoms.vx[j], Ekin);
-		integrator.advect(atoms.fy[j], atoms.py[j], atoms.vy[j], Ekin);
-		integrator.advect(atoms.fz[j], atoms.pz[j], atoms.vz[j], Ekin);
+		for (int j = 0; j<np; j++)
+		{
+			integrator_lf.advect(atoms.fx[j], atoms.px[j], atoms.vx[j], Ekin);
+			integrator_lf.advect(atoms.fy[j], atoms.py[j], atoms.vy[j], Ekin);
+			integrator_lf.advect(atoms.fz[j], atoms.pz[j], atoms.vz[j], Ekin);
+		}
+		if (i%n_steps_collisions==0)
+		{
+			if (thermo_type == "dpd") 
+				thermostat_dpd.step(atoms, rng, dEkin, dEpot);
+			else if (thermo_type == "andersen")
+				thermostat_and.step(atoms, rng, dEkin, dEpot);
+		}
+		atoms.apply_pbc();
+		update_forces(forces, atoms, Epot, g);
+		forcing.apply(atoms);
+		Etot = Ekin + Epot;
+		Etot2 = Etot*Etot;
 	}
 
-	Etot = Ekin + Epot;
-
-	if (i%n_steps_collisions==0)
+	// Velocity-Verlet loop
+	else if (integrator_type=="vv")
 	{
-		if (thermo_type == "dpd") 
-			thermostat_dpd.step(atoms, rng, dEkin, dEpot);
-		else if (thermo_type == "andersen")
-			thermostat_and.step(atoms, rng, dEkin, dEpot);
+		for (int j = 0; j<np; j++)
+		{
+			integrator_vv.half_step_velocity(atoms.fx[j], atoms.vx[j]);
+			integrator_vv.half_step_velocity(atoms.fy[j], atoms.vy[j]);
+			integrator_vv.half_step_velocity(atoms.fz[j], atoms.vz[j]);
+		}
+		if (i%n_steps_collisions==0 && thermo_type == "dpd")
+			thermostat_dpd.half_step(atoms, rng, dEkin);
+		for (int j = 0; j<np; j++)
+		{
+			integrator_vv.full_step_position(atoms.px[j], atoms.vx[j], Ekin);
+			integrator_vv.full_step_position(atoms.py[j], atoms.vy[j], Ekin);
+			integrator_vv.full_step_position(atoms.pz[j], atoms.vz[j], Ekin);
+		}
+		atoms.apply_pbc();
+		update_forces(forces, atoms, Epot, g);
+		forcing.apply(atoms);
+		Etot = Ekin + Epot;
+		Etot2 = Etot*Etot;
+		for (int j = 0; j<np; j++)
+		{
+			integrator_vv.half_step_velocity(atoms.fx[j], atoms.vx[j]);
+			integrator_vv.half_step_velocity(atoms.fy[j], atoms.vy[j]);
+			integrator_vv.half_step_velocity(atoms.fz[j], atoms.vz[j]);
+		}
+		if (i%n_steps_collisions==0)
+		{
+			if (thermo_type == "dpd") 
+				thermostat_dpd.half_step(atoms, rng, dEkin);
+			else if (thermo_type == "andersen")
+				thermostat_and.step(atoms, rng, dEkin, dEpot);
+		}
 	}
-
-	atoms.apply_pbc();
 
 	// TO-DO: compute the whole work that the thermostat does on the system, 
 	// both the kinetic and the potential contribution (since positions are
@@ -164,8 +220,12 @@ for (int i = 1; i<N; i++)
 		Ekin /= n_dump_energy;
 		Epot /= n_dump_energy;
 		Etot /= n_dump_energy;
+		Etot2 /= n_dump_energy;
 		Econ /= n_dump_energy;
-		g.avg_frame(n_dump_energy);
+		if ( i > 0.5*N )
+			g.avg_frame(n_dump_energy);
+		else
+			g.reset();
 		atoms.drift(vcx, vcy, vcz);
 		std::cout << "---------------" <<std::endl;
 		std::cout << "Iteration " << i <<std::endl;
@@ -176,6 +236,9 @@ for (int i = 1; i<N; i++)
 		std::cout << "v_drift = [" << vcx << "," << vcy << "," << vcz << "]" << std::endl;
 		T = atoms.temperature(m);
 		std::cout << "T = " << T << std::endl;
+		cv = (Etot2-Etot*Etot)/(m*np*T*T); 
+		std::cout << "cv = " << cv << std::endl;
+		ener.append_cv(cv);
 		ener.append_energy(Ekin, Epot, Etot);
 		ener.append_temp(T);
 		atoms.com(xcom, ycom, zcom);
@@ -183,6 +246,7 @@ for (int i = 1; i<N; i++)
 		Ekin = 0.0;
 		Epot = 0.0;
 		Etot = 0.0;
+		Etot2 = 0.0;
 		dEkin = 0.0;
 		dEpot = 0.0;
 		Econ = 0.0;
@@ -194,8 +258,15 @@ for (int i = 1; i<N; i++)
 		
 }
 
+sw1.stop();
+std::cout << "---------------" << std::endl;
+std::cout << "ELAPSED: " << sw1.get_time() << " ms" << std::endl;
+
 binning.average_over_frames();
-g.avg_distribution(N/n_dump_energy);
+g.avg_distribution(0.5*N/n_dump_energy);
+
+std::cout << "---------------" << std::endl;
+std::cout << "T deviation: dT = " << ener.temperature_deviation(Tref) << std::endl;
 
 std::cout << "---------------" <<std::endl;
 std::cout << "Writing output .gro and .xvg files" << std::endl;
@@ -206,6 +277,7 @@ atoms.dump("confout.gro", Lx, Ly, Lz);
 ener.output_energy("ener.xvg");
 ener.output_com("com.xvg");
 ener.output_temperature("temperature.xvg");
+ener.output_heat_capacity("heat_capacity.xvg");
 binning.output_density("density.xvg");
 binning.output_velocity("velocity.xvg");
 g.output_distribution("radial_distribution.xvg");
@@ -272,6 +344,7 @@ void init_ensemble
 		ens.vy[i] = rng.gaussian(kep);
 		ens.vz[i] = rng.gaussian(kep);
 	}
+	/*
 	double xcom, ycom, zcom;
 	ens.com(xcom, ycom, zcom);
 	double vcx, vcy, vcz;
@@ -285,6 +358,8 @@ void init_ensemble
 		ens.vy[i] -= vcy;
 		ens.vz[i] -= vcz;
 	}
+	*/
+	ens.correct_com();
 	for (int i=0; i<N; ++i)
 		ens.vx[i] += vx0;
 }

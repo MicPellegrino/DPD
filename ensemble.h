@@ -127,6 +127,23 @@ public:
 		vcz/=np;
 	}
 
+	void correct_com(void)
+	{
+		double xcom, ycom, zcom;
+		com(xcom, ycom, zcom);
+		double vcx, vcy, vcz;
+		drift(vcx, vcy, vcz);
+		for (int i = 0; i<np; ++i)
+		{
+			px[i] += 0.5*Lx-xcom;
+			py[i] += 0.5*Ly-ycom;
+			pz[i] += 0.5*Lz-zcom;
+			vx[i] -= vcx;
+			vy[i] -= vcy;
+			vz[i] -= vcz;
+		}
+	}
+
 	double temperature(double m)
 	{
 		double vcx=0;

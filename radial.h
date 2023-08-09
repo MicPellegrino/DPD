@@ -31,14 +31,18 @@ public:
 		assert( idx<n_bins && "Binning error: outside maximal minimal-image distance" );
 		bins[idx] += 1;
 	}
+	
+	void reset(void)
+	{
+		for (int i=0; i<n_bins; ++i)
+			bins[i] = 0.0;
+	}
 
 	void avg_frame(int nf)
 	{
 		for (int i=0; i<n_bins; ++i)
-		{
 			d[i] += bins[i]/nf;
-			bins[i] = 0.0;
-		}
+		reset();
 	}
 
 	void avg_distribution(int nf)

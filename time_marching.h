@@ -29,4 +29,27 @@ public:
 
 };
 
+class VelocityVerlet
+{
+
+private:
+	double m;
+	double dt;
+
+public:
+	VelocityVerlet(double mass, double time_step): m(mass), dt(time_step) { }
+
+	void half_step_velocity(double& force, double& v)
+	{
+		v += 0.5*dt*force/m;
+	}
+
+	void full_step_position(double& x, double& v, double& e)
+	{
+		x += dt*v;
+		e += 0.5*m*v*v;
+	}
+
+};
+
 #endif /* TIME_MARCHING_H */
